@@ -1,0 +1,16 @@
+loadBalancer:
+  host: "localhost"
+  port: "8080"
+
+backends:
+  addresses:
+    - "http://localhost:9000"
+    - "http://localhost:9001"
+    - "http://localhost:9002"
+
+healthChecker:
+  interval: 2
+
+rateLimiter:
+  capacity: 10
+  refill_rate: 2
