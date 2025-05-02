@@ -1,3 +1,0 @@
-package rateLimiter
-
-func ToRateLimiterInfo()

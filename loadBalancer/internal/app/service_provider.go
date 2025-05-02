@@ -117,7 +117,7 @@ func (s *serviceProvider) RedisConfig() config.RedisConfig {
 	return s.redisConfig
 }
 
-func (s *serviceProvider) Rdb(ctx context.Context) *redis.Client {
+func (s *serviceProvider) Rdb(_ context.Context) *redis.Client {
 	if s.rdb == nil {
 		rdb := redis.NewClient(&redis.Options{
 			Addr:            s.RedisConfig().Address(),
@@ -184,7 +184,7 @@ func (s *serviceProvider) RoundRobin(ctx context.Context) service.LoadBalancer {
 	return s.roundRobin
 }
 
-func (s *serviceProvider) Backends(ctx context.Context) []service.Backend {
+func (s *serviceProvider) Backends(_ context.Context) []service.Backend {
 	if s.backends == nil {
 		cfg := s.BackendConfig()
 		for _, address := range cfg.Addresses() {
@@ -207,7 +207,7 @@ func (s *serviceProvider) RateLimiter(ctx context.Context) service.RateLimiter {
 	return s.rateLimiter
 }
 
-func (s *serviceProvider) WorkerPool(ctx context.Context) service.WorkerPool {
+func (s *serviceProvider) WorkerPool(_ context.Context) service.WorkerPool {
 	if s.workerPool == nil {
 		s.workerPool = workerPool.NewWorkerPool(s.WorkerPoolConfig())
 	}
