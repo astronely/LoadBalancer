@@ -21,7 +21,7 @@ func init() {
 	flag.Parse()
 }
 
-// App - main app
+// App is main application struct
 type App struct {
 	serviceProvider *serviceProvider
 	httpServer      *http.Server
@@ -86,6 +86,7 @@ func (a *App) initDeps(ctx context.Context) error {
 	return nil
 }
 
+// initConfig initializing config
 func (a *App) initConfig(_ context.Context) error {
 	err := config.Load(configPath)
 	if err != nil {
@@ -95,6 +96,7 @@ func (a *App) initConfig(_ context.Context) error {
 	return nil
 }
 
+// initServiceProvider initializing service provider
 func (a *App) initServiceProvider(_ context.Context) error {
 	a.serviceProvider = newServiceProvider()
 	slog.Debug("Config vars",
@@ -104,6 +106,7 @@ func (a *App) initServiceProvider(_ context.Context) error {
 	return nil
 }
 
+// initHTTPServer initializing http server and register handlers
 func (a *App) initHTTPServer(ctx context.Context) error {
 
 	// Register endpoints
@@ -128,11 +131,13 @@ func (a *App) initHTTPServer(ctx context.Context) error {
 	return nil
 }
 
+// initHealthChecker initializing health checker service
 func (a *App) initHealthChecker(ctx context.Context) error {
 	a.healthChecker = healthChecker.NewHealthChecker(a.serviceProvider.Backends(ctx), a.serviceProvider.HealthCheckerConfig().Interval())
 	return nil
 }
 
+// runHTTPServer start http server
 func (a *App) runHTTPServer(ctx context.Context) error {
 	slog.Info("starting http server",
 		"address", a.serviceProvider.LoadBalancerConfig().Address(),

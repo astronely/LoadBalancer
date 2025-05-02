@@ -9,6 +9,7 @@ import (
 	"net/http"
 )
 
+// Add handler add user rate limits
 func (i *Implementation) Add(ctx context.Context) {
 	i.mux.HandleFunc("/clients/add", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != "POST" {

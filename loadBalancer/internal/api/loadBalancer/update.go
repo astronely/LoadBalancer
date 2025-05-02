@@ -8,6 +8,7 @@ import (
 	"net/http"
 )
 
+// Update handler updates user rate limits in Redis
 func (i *Implementation) Update(ctx context.Context) {
 	i.mux.HandleFunc("/clients/update", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != "PUT" {

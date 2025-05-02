@@ -7,6 +7,7 @@ import (
 	"net/http"
 )
 
+// Get handler returns user rate limits from Redis
 func (i *Implementation) Get(ctx context.Context) {
 	i.mux.HandleFunc("/clients/get", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != "GET" {

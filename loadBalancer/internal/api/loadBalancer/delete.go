@@ -7,6 +7,7 @@ import (
 	"net/http"
 )
 
+// Delete handler deletes user rate limits from Redis
 func (i *Implementation) Delete(ctx context.Context) {
 	i.mux.HandleFunc("/clients/delete", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != "DELETE" {

@@ -5,6 +5,7 @@ import (
 	"net/http"
 )
 
+// Implementation LoadBalancer API
 type Implementation struct {
 	mux   *http.ServeMux
 	proxy http.Handler
