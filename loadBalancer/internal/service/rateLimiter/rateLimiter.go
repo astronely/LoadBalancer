@@ -82,14 +82,14 @@ func (r *RateLimiter) Start() {
 	for {
 		select {
 		case <-r.ticker.C:
-			r.mu.RLock()
+			r.mu.Lock()
 			for id, bucket := range r.buckets {
 				bucket.refill()
 				slog.Info("RateLimiter ticker",
 					"bucket ID", id,
 					"bucket capacity", bucket.tokens)
 			}
-			r.mu.RUnlock()
+			r.mu.Unlock()
 		case <-r.done:
 			r.ticker.Stop()
 			return
@@ -146,10 +146,8 @@ func (r *RateLimiter) Add(ctx context.Context, info *rateLimiter.Info) error {
 		)
 		return err
 	}
-	slog.Info("RateLimiterCustomConfig created")
-	//r.mu.RLock()
+
 	r.SetClientConfig(info.ID, cfg)
-	//r.mu.RUnlock()
 
 	return nil
 }
@@ -174,10 +172,10 @@ func (r *RateLimiter) Delete(ctx context.Context, id string) error {
 		return err
 	}
 
-	r.mu.RLock()
+	r.mu.Lock()
 	delete(r.customConfig, id)
 	r.buckets[id] = NewTokenBucket(r.config)
-	r.mu.RUnlock()
+	r.mu.Unlock()
 
 	return nil
 }
