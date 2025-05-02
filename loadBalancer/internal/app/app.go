@@ -2,11 +2,9 @@ package app
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"flag"
 	"github.com/astronely/loadBalancer/loadBalancer/internal/config"
-	"github.com/astronely/loadBalancer/loadBalancer/internal/model/workerPool"
 	"github.com/astronely/loadBalancer/loadBalancer/internal/service/healthChecker"
 	"github.com/astronely/loadBalancer/loadBalancer/pkg/closer"
 	"log"
@@ -14,7 +12,6 @@ import (
 	"net/http"
 	"os/signal"
 	"syscall"
-	"time"
 )
 
 var configPath string
@@ -78,7 +75,7 @@ func (a *App) initDeps(ctx context.Context) error {
 		a.initServiceProvider,
 		a.initHTTPServer,
 		a.initHealthChecker,
-		a.initCustomConfigs,
+		//a.initCustomConfigs,
 	}
 	for _, f := range inits {
 		if err := f(ctx); err != nil {
@@ -108,51 +105,31 @@ func (a *App) initServiceProvider(_ context.Context) error {
 }
 
 func (a *App) initHTTPServer(ctx context.Context) error {
-	mux := http.NewServeMux()
-	wp := a.serviceProvider.WorkerPool()
-	jobs := wp.Start()
 
-	// Handler using WorkPool pattern
-	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		ctxWithTimeout, cancel := context.WithTimeout(ctx, time.Second*1)
+	// Register endpoints
+	a.serviceProvider.LoadBalancerImpl(ctx).Check(ctx)
+	a.serviceProvider.LoadBalancerImpl(ctx).GetClients(ctx)
+	a.serviceProvider.LoadBalancerImpl(ctx).Add(ctx)
+	a.serviceProvider.LoadBalancerImpl(ctx).Get(ctx)
+	a.serviceProvider.LoadBalancerImpl(ctx).Update(ctx)
+	a.serviceProvider.LoadBalancerImpl(ctx).Delete(ctx)
 
-		jobDone := make(chan struct{})
-		select {
-		case jobs <- workerPool.Job{W: w, R: r, Handler: a.serviceProvider.Proxy(), Done: jobDone}:
-			<-jobDone
-			cancel()
-		case <-ctxWithTimeout.Done():
-			http.Error(w, "Timeout, servers unavailable", http.StatusServiceUnavailable)
-			cancel()
-		}
-	})
-
-	// Handler return rate info for all clients
-	mux.HandleFunc("/clients", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != "GET" {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-			return
-		}
-		clients := a.serviceProvider.RateLimiter().Clients()
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(clients)
-	})
+	err := a.serviceProvider.RateLimiter(ctx).CheckAll(ctx)
+	if err != nil {
+		slog.Error("failed to check all rate limiter clients",
+			"error", err.Error(),
+		)
+	}
 
 	a.httpServer = &http.Server{
 		Addr:    a.serviceProvider.LoadBalancerConfig().Address(),
-		Handler: mux,
+		Handler: a.serviceProvider.LoadBalancerImpl(ctx),
 	}
 	return nil
 }
 
-func (a *App) initHealthChecker(_ context.Context) error {
-	a.healthChecker = healthChecker.NewHealthChecker(a.serviceProvider.Backends(), a.serviceProvider.HealthCheckerConfig().Interval())
-	return nil
-}
-
-// initCustomConfigs initializing special config for VIP clients
-func (a *App) initCustomConfigs(_ context.Context) error {
-	a.serviceProvider.RateLimiter().SetClientConfig("127.0.0.1", a.serviceProvider.RateLimiterVipConfig())
+func (a *App) initHealthChecker(ctx context.Context) error {
+	a.healthChecker = healthChecker.NewHealthChecker(a.serviceProvider.Backends(ctx), a.serviceProvider.HealthCheckerConfig().Interval())
 	return nil
 }
 

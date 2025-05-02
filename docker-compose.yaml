@@ -1,9 +1,22 @@
-version: '3.8'
+volumes:
+  redis-data:
 
 networks:
   load_balancer:
 
 services:
+  redis:
+    image: redis:7.4.2-alpine3.21
+    env_file:
+      - "./prod.env"
+    command: /bin/sh -c "redis-server"
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - load_balancer
+
   backend-1:
     build:
       context: ./BackendServer
@@ -42,3 +55,5 @@ services:
     networks:
       - load_balancer
     platform: linux/amd64
+    depends_on:
+      - redis

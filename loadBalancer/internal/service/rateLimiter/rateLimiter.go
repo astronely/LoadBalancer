@@ -1,8 +1,11 @@
 package rateLimiter
 
 import (
+	"context"
 	"github.com/astronely/loadBalancer/loadBalancer/internal/config"
+	TokenBucketModel "github.com/astronely/loadBalancer/loadBalancer/internal/model/TokenBucket"
 	"github.com/astronely/loadBalancer/loadBalancer/internal/model/rateLimiter"
+	"github.com/astronely/loadBalancer/loadBalancer/internal/repository"
 	"github.com/astronely/loadBalancer/loadBalancer/internal/service"
 	"log/slog"
 	"net/http"
@@ -58,15 +61,19 @@ type RateLimiter struct {
 	ticker       *time.Ticker
 	done         chan struct{}
 	mu           sync.RWMutex
+
+	rateLimiterRepo repository.RateLimiterRepository
 }
 
-func NewRateLimiter(cfg config.RateLimiterConfig) service.RateLimiter {
+func NewRateLimiter(cfg config.RateLimiterConfig, repo repository.RateLimiterRepository) service.RateLimiter {
 	return &RateLimiter{
 		config:       cfg,
 		customConfig: make(map[string]config.RateLimiterConfig),
 		buckets:      make(map[string]*TokenBucket),
 		ticker:       time.NewTicker(time.Duration(cfg.RefillInterval()) * time.Second),
 		done:         make(chan struct{}),
+
+		rateLimiterRepo: repo,
 	}
 }
 
@@ -123,6 +130,102 @@ func (r *RateLimiter) SetClientConfig(id string, cfg config.RateLimiterConfig) {
 	r.buckets[id] = NewTokenBucket(cfg)
 }
 
+func (r *RateLimiter) Add(ctx context.Context, info *rateLimiter.Info) error {
+	ctxWithTimeout, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	err := r.rateLimiterRepo.Create(ctxWithTimeout, info)
+	if err != nil {
+		return err
+	}
+
+	cfg, err := config.NewRateLimiterCustomConfig(info)
+	if err != nil {
+		slog.Error("failed to create RateLimiterCustomConfig",
+			"error", err.Error(),
+		)
+		return err
+	}
+	slog.Info("RateLimiterCustomConfig created")
+	//r.mu.RLock()
+	r.SetClientConfig(info.ID, cfg)
+	//r.mu.RUnlock()
+
+	return nil
+}
+
+func (r *RateLimiter) Get(ctx context.Context, id string) (*rateLimiter.Info, error) {
+	ctxWithTimeout, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	info, err := r.rateLimiterRepo.Get(ctxWithTimeout, id)
+	if err != nil {
+		return nil, err
+	}
+	return info, nil
+}
+
+func (r *RateLimiter) Delete(ctx context.Context, id string) error {
+	ctxWithTimeout, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	err := r.rateLimiterRepo.Delete(ctxWithTimeout, id)
+	if err != nil {
+		return err
+	}
+
+	r.mu.RLock()
+	delete(r.customConfig, id)
+	r.buckets[id] = NewTokenBucket(r.config)
+	r.mu.RUnlock()
+
+	return nil
+}
+
+func (r *RateLimiter) Update(ctx context.Context, info *rateLimiter.Info) error {
+	ctxWithTimeout, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	err := r.rateLimiterRepo.Update(ctxWithTimeout, info)
+	if err != nil {
+		return err
+	}
+
+	cfg, err := config.NewRateLimiterCustomConfig(info)
+	if err != nil {
+		slog.Error("failed to create RateLimiterCustomConfig",
+			"error", err.Error(),
+		)
+		return err
+	}
+	r.SetClientConfig(info.ID, cfg)
+
+	return nil
+}
+
+func (r *RateLimiter) CheckAll(ctx context.Context) error {
+	ctxWithTimeout, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	clients, err := r.rateLimiterRepo.List(ctxWithTimeout)
+	if err != nil {
+		return err
+	}
+
+	for _, client := range clients {
+		cfg, err := config.NewRateLimiterCustomConfig(client)
+		if err != nil {
+			slog.Error("failed to create RateLimiterCustomConfig",
+				"error", err.Error(),
+			)
+			return err
+		}
+		r.SetClientConfig(client.ID, cfg)
+	}
+
+	return nil
+}
+
 // Middleware is http.HandlerFunc used for each response
 func (r *RateLimiter) Middleware(next http.Handler, keyFunc func(*http.Request) string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
@@ -140,11 +243,11 @@ func (r *RateLimiter) Middleware(next http.Handler, keyFunc func(*http.Request) 
 	})
 }
 
-func (r *RateLimiter) Clients() map[string]*rateLimiter.TokenBucket {
-	clients := make(map[string]*rateLimiter.TokenBucket)
+func (r *RateLimiter) Clients() map[string]*TokenBucketModel.TokenBucket {
+	clients := make(map[string]*TokenBucketModel.TokenBucket)
 	r.mu.RLock()
 	for id, bucket := range r.buckets {
-		clients[id] = &rateLimiter.TokenBucket{
+		clients[id] = &TokenBucketModel.TokenBucket{
 			Config:     bucket.config,
 			Tokens:     bucket.tokens,
 			LastRefill: bucket.lastRefill,

@@ -1,15 +1,15 @@
 package rateLimiter
 
-import (
-	"github.com/astronely/loadBalancer/loadBalancer/internal/config"
-	"sync"
-	"time"
-)
+type Info struct {
+	ID         string
+	Capacity   float64
+	RefillRate float64
+	Interval   float64
+}
 
-// TokenBucket part of RateLimiting algorithm
-type TokenBucket struct {
-	Config     config.RateLimiterConfig
-	Tokens     float64
-	LastRefill time.Time
-	mu         sync.RWMutex
+type InfoFromBody struct {
+	ID         string  `json:"id"`
+	Capacity   float64 `json:"capacity"`
+	RefillRate float64 `json:"refill_rate"`
+	Interval   float64 `json:"interval"`
 }

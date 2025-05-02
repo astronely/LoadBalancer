@@ -2,6 +2,7 @@ package config
 
 import (
 	"errors"
+	"github.com/astronely/loadBalancer/loadBalancer/internal/model/rateLimiter"
 	"gopkg.in/yaml.v3"
 	"log/slog"
 	"os"
@@ -16,8 +17,8 @@ type rateLimiterConfig struct {
 	BucketRefillInterval float64 `yaml:"refill_interval"`
 }
 
-// rateLimiterVipConfig for VIP clients
-type rateLimiterVipConfig struct {
+// rateLimiterCustomConfig for VIP clients
+type rateLimiterCustomConfig struct {
 	BucketCapacity       float64 `yaml:"capacity_vip"`
 	BucketRefillRate     float64 `yaml:"refill_rate_vip"`
 	BucketRefillInterval float64 `yaml:"refill_interval"`
@@ -58,37 +59,23 @@ func (r *rateLimiterConfig) RefillInterval() float64 {
 	return r.BucketRefillInterval
 }
 
-func NewRateLimiterVipConfig() (RateLimiterConfig, error) {
-	configFile, err := os.Open(configName)
-	if err != nil {
-		return nil, errors.New("no config file found with name " + configName)
-	}
-	defer configFile.Close()
+func NewRateLimiterCustomConfig(info *rateLimiter.Info) (RateLimiterConfig, error) {
 
-	var cfg struct {
-		RateLimiterConfig rateLimiterVipConfig `yaml:"rateLimiter"`
-	}
-
-	d := yaml.NewDecoder(configFile)
-
-	if err = d.Decode(&cfg); err != nil {
-		return nil, errors.New("error parsing config file " + configName)
-	}
-
-	slog.Debug("Config",
-		"cfg", cfg)
-
-	return &cfg.RateLimiterConfig, nil
+	return &rateLimiterCustomConfig{
+		BucketCapacity:       info.Capacity,
+		BucketRefillRate:     info.RefillRate,
+		BucketRefillInterval: info.Interval,
+	}, nil
 }
 
-func (r *rateLimiterVipConfig) Capacity() float64 {
+func (r *rateLimiterCustomConfig) Capacity() float64 {
 	return r.BucketCapacity
 }
 
-func (r *rateLimiterVipConfig) RefillRate() float64 {
+func (r *rateLimiterCustomConfig) RefillRate() float64 {
 	return r.BucketRefillRate
 }
 
-func (r *rateLimiterVipConfig) RefillInterval() float64 {
+func (r *rateLimiterCustomConfig) RefillInterval() float64 {
 	return r.BucketRefillInterval
 }

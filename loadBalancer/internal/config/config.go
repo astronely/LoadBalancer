@@ -38,3 +38,10 @@ type WorkerPoolConfig interface {
 	PoolSize() int
 	QueueSize() int
 }
+
+type RedisConfig interface {
+	Address() string
+	ConnectionTimeout() time.Duration
+	MaxIdle() int
+	IdleTimeout() time.Duration
+}

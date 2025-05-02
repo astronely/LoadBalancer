@@ -21,3 +21,10 @@ rateLimiter:
 workerPool:
   pool_size: 5
   queue_size: 5
+
+redis:
+  host: "localhost"
+  port: "6379"
+  connection_timeout_sec: 5
+  max_idle: 10
+  idle_timeout_sec: 300
