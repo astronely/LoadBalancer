@@ -12,11 +12,9 @@ healthChecker:
   interval: 2
 
 rateLimiter:
-  capacity: 10
-  refill_rate: 1
-  refill_interval: 5
-  capacity_vip: 20
-  refill_rate_vip: 2
+  capacity: 100
+  refill_rate: 2
+  refill_interval: 2
 
 workerPool:
   pool_size: 5

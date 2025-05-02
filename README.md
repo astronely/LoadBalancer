@@ -88,8 +88,6 @@ rateLimiter:
     capacity: 10
     refill_rate: 1
     refill_interval: 5
-    capacity_vip: 20
-    refill_rate_vip: 2
 
 workerPool:
     pool_size: 5
@@ -129,3 +127,13 @@ workerPool:
     docker-compose up
 ```
 
+## Пример нагрузки
+При capacity = 100 пример 100% Complete Requests
+```bash
+    ab -n 100 -c 50 http://127.0.0.1:8080/
+```
+
+При capacity = 100 пример 10% Complete Requests
+```bash
+  ab -n 1000 -c 100 http://127.0.0.1:8080/
+```

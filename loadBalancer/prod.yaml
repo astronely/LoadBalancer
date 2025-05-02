@@ -15,8 +15,6 @@ rateLimiter:
   capacity: 10
   refill_rate: 1
   refill_interval: 5
-  capacity_vip: 20
-  refill_rate_vip: 2
 
 workerPool:
   pool_size: 5
