@@ -1,20 +1,22 @@
 package proxy
 
 import (
-	"github.com/astronely/loadBalancer/loadBalancer/internal/domain"
+	"github.com/astronely/loadBalancer/loadBalancer/internal/service"
 	"log/slog"
 	"net/http"
 	"net/http/httputil"
 )
 
+// Proxy handler
 type Proxy struct {
-	loadBalancer domain.LoadBalancer
+	loadBalancer service.LoadBalancer
 }
 
-func NewProxy(loadBalancer domain.LoadBalancer) http.Handler {
+func NewProxy(loadBalancer service.LoadBalancer) http.Handler {
 	return &Proxy{loadBalancer: loadBalancer}
 }
 
+// ServeHTTP implementation of handler for redirect requests to available backend
 func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var lastErr error
 	for t := 0; t < 3; t++ {
@@ -28,16 +30,16 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 
 		director := func(req *http.Request) {
-			req.URL.Scheme = backend.URL.Scheme
-			req.URL.Host = backend.URL.Host
-			req.Host = backend.URL.Host
+			req.URL.Scheme = backend.GetURL().Scheme
+			req.URL.Host = backend.GetURL().Host
+			req.Host = backend.GetURL().Host
 		}
 
 		tryNext := false
 		proxy := &httputil.ReverseProxy{Director: director}
 		proxy.ErrorHandler = func(w http.ResponseWriter, r *http.Request, e error) {
 			slog.Error("Error in proxy",
-				"backend URL", backend.URL,
+				"backend URL", backend.GetURL(),
 				"error", e.Error(),
 			)
 			backend.SetAlive(false)
@@ -54,7 +56,7 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 		if rw.wroteHeader {
 			slog.Info("Proxying to backend",
-				"backend URL", backend.URL,
+				"backend URL", backend.GetURL(),
 			)
 			return
 		}
@@ -68,11 +70,13 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	http.Error(w, "Service unavailable", http.StatusServiceUnavailable)
 }
 
+// responseWriterCatcher custom ResponseWriter to implement attemptions
 type responseWriterCatcher struct {
 	http.ResponseWriter
 	wroteHeader bool
 }
 
+// WriteHeader custom function to implement attemptions
 func (r *responseWriterCatcher) WriteHeader(statusCode int) {
 	if !r.wroteHeader {
 		r.ResponseWriter.WriteHeader(statusCode)

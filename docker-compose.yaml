@@ -1,0 +1,44 @@
+version: '3.8'
+
+networks:
+  load_balancer:
+
+services:
+  backend-1:
+    build:
+      context: ./BackendServer
+    command: ["./main", "-port=9000"]
+    ports:
+      - "9000:9000"
+    networks:
+      - load_balancer
+    platform: linux/amd64
+
+  backend-2:
+    build:
+      context: ./BackendServer
+    command: ["./main", "-port=9001"]
+    ports:
+      - "9001:9000"
+    networks:
+      - load_balancer
+    platform: linux/amd64
+
+  backend-3:
+    build:
+      context: ./BackendServer
+    command: ["./main", "-port=9002"]
+    ports:
+      - "9002:9000"
+    networks:
+      - load_balancer
+    platform: linux/amd64
+
+  load_balancer:
+    build:
+      context: ./loadBalancer
+    ports:
+      - "8080:8080"
+    networks:
+      - load_balancer
+    platform: linux/amd64

@@ -6,6 +6,7 @@ import (
 	"sync/atomic"
 )
 
+// Backend struct of using backends
 type Backend struct {
 	URL   *url.URL
 	alive uint32
@@ -24,6 +25,7 @@ func NewBackend(address string) (*Backend, error) {
 	return b, nil
 }
 
+// SetAlive changing alive variable
 func (b *Backend) SetAlive(value bool) {
 	var val uint32
 	if value {
@@ -32,6 +34,11 @@ func (b *Backend) SetAlive(value bool) {
 	atomic.StoreUint32(&b.alive, val)
 }
 
+// IsAlive returns if backend alive
 func (b *Backend) IsAlive() bool {
 	return atomic.LoadUint32(&b.alive) == 1
+}
+
+func (b *Backend) GetURL() *url.URL {
+	return b.URL
 }

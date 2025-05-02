@@ -35,6 +35,6 @@ func NewLoadBalancerConfig() (LoadBalancerConfig, error) {
 	return &cfg.LoadBalancerConfig, nil
 }
 
-func (b *loadBalancerConfig) Address() string {
-	return net.JoinHostPort(b.Host, b.Port)
+func (l *loadBalancerConfig) Address() string {
+	return net.JoinHostPort(l.Host, l.Port)
 }

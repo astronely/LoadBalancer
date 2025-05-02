@@ -1,25 +1,35 @@
 package app
 
 import (
-	"github.com/astronely/loadBalancer/loadBalancer/internal/backend"
 	"github.com/astronely/loadBalancer/loadBalancer/internal/config"
-	"github.com/astronely/loadBalancer/loadBalancer/internal/domain"
+	"github.com/astronely/loadBalancer/loadBalancer/internal/service"
+	"github.com/astronely/loadBalancer/loadBalancer/internal/service/backend"
 	"github.com/astronely/loadBalancer/loadBalancer/internal/service/proxy"
+	"github.com/astronely/loadBalancer/loadBalancer/internal/service/rateLimiter"
 	"github.com/astronely/loadBalancer/loadBalancer/internal/service/roundRobin"
+	"github.com/astronely/loadBalancer/loadBalancer/internal/service/workerPool"
+	"github.com/astronely/loadBalancer/loadBalancer/pkg/closer"
 	"log/slog"
+	"net"
 	"net/http"
 )
 
+// serviceProvider - DI container
 type serviceProvider struct {
-	loadBalancerConfig  config.LoadBalancerConfig
-	backendConfig       config.BackendConfig
-	healthCheckerConfig config.HealthCheckerConfig
+	loadBalancerConfig   config.LoadBalancerConfig
+	backendConfig        config.BackendConfig
+	healthCheckerConfig  config.HealthCheckerConfig
+	rateLimiterConfig    config.RateLimiterConfig
+	rateLimiterVipConfig config.RateLimiterConfig
+	workerPoolConfig     config.WorkerPoolConfig
+
+	backends []service.Backend
 
 	proxy http.Handler
 
-	roundRobin domain.LoadBalancer
-
-	backends []*backend.Backend
+	roundRobin  service.LoadBalancer
+	rateLimiter service.RateLimiter
+	workerPool  service.WorkerPool
 }
 
 func newServiceProvider() *serviceProvider {
@@ -36,6 +46,7 @@ func (s *serviceProvider) LoadBalancerConfig() config.LoadBalancerConfig {
 	}
 	return s.loadBalancerConfig
 }
+
 func (s *serviceProvider) BackendConfig() config.BackendConfig {
 	if s.backendConfig == nil {
 		cfg, err := config.NewBackendConfig()
@@ -58,22 +69,71 @@ func (s *serviceProvider) HealthCheckerConfig() config.HealthCheckerConfig {
 	return s.healthCheckerConfig
 }
 
+func (s *serviceProvider) RateLimiterConfig() config.RateLimiterConfig {
+	if s.rateLimiterConfig == nil {
+		cfg, err := config.NewRateLimiterConfig()
+		if err != nil {
+			panic("Error loading rateLimiter config: " + err.Error())
+		}
+		s.rateLimiterConfig = cfg
+	}
+	return s.rateLimiterConfig
+}
+
+func (s *serviceProvider) RateLimiterVipConfig() config.RateLimiterConfig {
+	if s.rateLimiterVipConfig == nil {
+		cfg, err := config.NewRateLimiterVipConfig()
+		if err != nil {
+			panic("Error loading rateLimiter config: " + err.Error())
+		}
+		s.rateLimiterVipConfig = cfg
+	}
+	return s.rateLimiterVipConfig
+}
+
+func (s *serviceProvider) WorkerPoolConfig() config.WorkerPoolConfig {
+	if s.workerPoolConfig == nil {
+		cfg, err := config.NewWorkerPoolConfig()
+		if err != nil {
+			panic("Error loading worker pool config: " + err.Error())
+		}
+		s.workerPoolConfig = cfg
+	}
+	return s.workerPoolConfig
+}
+
 func (s *serviceProvider) Proxy() http.Handler {
 	if s.proxy == nil {
-		s.proxy = proxy.NewProxy(s.RoundRobin())
+		newProxy := proxy.NewProxy(s.RoundRobin())
+
+		keyFunc := func(r *http.Request) string {
+			host, _, _ := net.SplitHostPort(r.RemoteAddr)
+			return host
+		}
+
+		limitedProxy := s.RateLimiter().Middleware(newProxy, keyFunc)
+
+		// Start RateLimiter ticker to refill tokens
+		go s.RateLimiter().Start()
+		closer.Add(func() error {
+			s.RateLimiter().Stop()
+			slog.Info("RateLimiter Ticker stopped")
+			return nil
+		})
+
+		s.proxy = limitedProxy
 	}
 	return s.proxy
 }
 
-func (s *serviceProvider) RoundRobin() domain.LoadBalancer {
+func (s *serviceProvider) RoundRobin() service.LoadBalancer {
 	if s.roundRobin == nil {
 		s.roundRobin = roundRobin.NewRoundRobin(s.Backends())
 	}
-
 	return s.roundRobin
 }
 
-func (s *serviceProvider) Backends() []*backend.Backend {
+func (s *serviceProvider) Backends() []service.Backend {
 	if s.backends == nil {
 		cfg := s.BackendConfig()
 		for _, address := range cfg.Addresses() {
@@ -87,4 +147,18 @@ func (s *serviceProvider) Backends() []*backend.Backend {
 		}
 	}
 	return s.backends
+}
+
+func (s *serviceProvider) RateLimiter() service.RateLimiter {
+	if s.rateLimiter == nil {
+		s.rateLimiter = rateLimiter.NewRateLimiter(s.RateLimiterConfig())
+	}
+	return s.rateLimiter
+}
+
+func (s *serviceProvider) WorkerPool() service.WorkerPool {
+	if s.workerPool == nil {
+		s.workerPool = workerPool.NewWorkerPool(s.WorkerPoolConfig())
+	}
+	return s.workerPool
 }

@@ -2,22 +2,23 @@ package roundRobin
 
 import (
 	"errors"
-	"github.com/astronely/loadBalancer/loadBalancer/internal/backend"
-	"github.com/astronely/loadBalancer/loadBalancer/internal/domain"
+	"github.com/astronely/loadBalancer/loadBalancer/internal/service"
 	"sync"
 )
 
+// RoundRobin Implementation of loadBalancer algorithm
 type RoundRobin struct {
-	backends []*backend.Backend
+	backends []service.Backend
 	mu       sync.RWMutex
 	idx      int
 }
 
-func NewRoundRobin(b []*backend.Backend) domain.LoadBalancer {
+func NewRoundRobin(b []service.Backend) service.LoadBalancer {
 	return &RoundRobin{backends: b}
 }
 
-func (r *RoundRobin) Next() (*backend.Backend, error) {
+// Next backend to use
+func (r *RoundRobin) Next() (service.Backend, error) {
 	r.mu.Lock()
 	n := len(r.backends)
 	r.mu.Unlock()

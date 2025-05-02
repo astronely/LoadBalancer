@@ -1,18 +1,20 @@
 package config
 
 import (
-	"github.com/joho/godotenv"
+	"log/slog"
 	"time"
 )
 
-const (
-	configName = "local.yaml"
-)
+var configName string
 
-func Load(path string) error {
-	err := godotenv.Load(path)
-	return err
+func Load(cfgName string) error {
+	configName = cfgName
+	slog.Info("Loading config file",
+		"filename", cfgName)
+	return nil
 }
+
+// Interfaces for every config
 
 type LoadBalancerConfig interface {
 	Address() string
@@ -27,6 +29,12 @@ type HealthCheckerConfig interface {
 }
 
 type RateLimiterConfig interface {
-	Capacity() int
-	RefillRate() int
+	Capacity() float64
+	RefillRate() float64
+	RefillInterval() float64
+}
+
+type WorkerPoolConfig interface {
+	PoolSize() int
+	QueueSize() int
 }
