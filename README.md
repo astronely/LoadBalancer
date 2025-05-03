@@ -39,12 +39,18 @@
 - Простая реализация сервера с двумя endpoints: "/" и "/health"
 - Возможность запускать на разных портах благодаря указанию флага -port
 
+### Redis | Плюсы в рамках приложения
+- Много операций чтения и мало операций записи - Redis отлично подходит
+- Приложение требует низкой задержки - Redis используется как кэш
+- Данные не являются особо важными, в случае чего их легко восстановить
+- В дальнейшем можно использовать TTL для автоматизированного и гибкого управления и хранения Rate Limits
+
 ### RestAPI
 - **Method=GET /clients** - Получить список всех пользователей и их RateLimits
-- **Method=POST /clients/add** - Добавить пользователю кастомные RateLimits
-- **Method=GET /clients/get** - Получить информацию о RateLimits конкретного пользователя
-- **Method=PUT /clients/update** - Обновить данные RateLimits у пользователя
-- **Method=DELETE /clients/delete** - Удалить RateLimits пользователя (установятся дефолтные из Config-файла)
+- **Method=POST /clients** - Добавить пользователю кастомные RateLimits
+- **Method=GET /clients/{id}** - Получить информацию о RateLimits конкретного пользователя
+- **Method=PUT /clients** - Обновить данные RateLimits у пользователя
+- **Method=DELETE /clients/{id}** - Удалить RateLimits пользователя (установятся дефолтные из Config-файла)
 
 ### Пример JSON-body запросов
 - Для **Add** и **Update**
@@ -54,12 +60,6 @@
     "capacity": 20,
     "refill_rate": 2,
     "interval": 2
-}
-```
-- Для **Get** и **Delete**
-```
-{
-    "id": "127.0.0.1"
 }
 ```
   
@@ -129,12 +129,12 @@ workerPool:
 ```
 
 ## Пример нагрузки
-При capacity = 100 пример 100% Complete Requests
+При capacity = 100: пример 100% Complete Requests и быстрой скорости ответа
 ```bash
     ab -n 100 -c 50 http://127.0.0.1:8080/
 ```
 
-При capacity = 100 пример 10% Complete Requests
+При capacity = 100: пример 10% Complete Requests и быстрой скорости ответа
 ```bash
   ab -n 1000 -c 100 http://127.0.0.1:8080/
 ```

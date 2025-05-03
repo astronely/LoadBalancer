@@ -152,7 +152,7 @@ func (r *RateLimiter) Add(ctx context.Context, info *rateLimiter.Info) error {
 	return nil
 }
 
-func (r *RateLimiter) Get(ctx context.Context, id string) (*rateLimiter.Info, error) {
+func (r *RateLimiter) Get(ctx context.Context, id string) (*rateLimiter.FullInfo, error) {
 	ctxWithTimeout, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
@@ -160,7 +160,16 @@ func (r *RateLimiter) Get(ctx context.Context, id string) (*rateLimiter.Info, er
 	if err != nil {
 		return nil, err
 	}
-	return info, nil
+	fullInfo := r.buckets[info.ID]
+
+	return &rateLimiter.FullInfo{
+		ID:         info.ID,
+		Capacity:   info.Capacity,
+		TokensLeft: fullInfo.tokens,
+		RefillRate: info.RefillRate,
+		LastRefill: fullInfo.lastRefill,
+		Interval:   info.Interval,
+	}, nil
 }
 
 func (r *RateLimiter) Delete(ctx context.Context, id string) error {

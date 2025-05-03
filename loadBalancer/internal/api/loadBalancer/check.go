@@ -12,7 +12,7 @@ func (i *Implementation) Check(ctx context.Context) {
 	jobs := i.workerPool.Start()
 
 	i.mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		ctxWithTimeout, cancel := context.WithTimeout(ctx, time.Second*1)
+		ctxWithTimeout, cancel := context.WithTimeout(ctx, time.Second*2)
 
 		jobDone := make(chan struct{})
 		select {

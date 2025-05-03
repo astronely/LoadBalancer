@@ -19,7 +19,7 @@ type RateLimiter interface {
 	Middleware(next http.Handler, keyFunc func(*http.Request) string) http.Handler
 	Clients() map[string]*TokenBucket.TokenBucket
 	Add(ctx context.Context, info *rateLimiter.Info) error
-	Get(ctx context.Context, id string) (*rateLimiter.Info, error)
+	Get(ctx context.Context, id string) (*rateLimiter.FullInfo, error)
 	Delete(ctx context.Context, id string) error
 	Update(ctx context.Context, info *rateLimiter.Info) error
 	CheckAll(ctx context.Context) error

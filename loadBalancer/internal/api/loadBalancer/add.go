@@ -6,16 +6,13 @@ import (
 	"github.com/astronely/loadBalancer/loadBalancer/internal/model/rateLimiter"
 	"io"
 	"log/slog"
+	"net"
 	"net/http"
 )
 
 // Add handler add user rate limits
 func (i *Implementation) Add(ctx context.Context) {
-	i.mux.HandleFunc("/clients/add", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != "POST" {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-			return
-		}
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		body, err := io.ReadAll(r.Body)
 		if err != nil {
 			http.Error(w, "Failed to read body", http.StatusBadRequest)
@@ -46,4 +43,11 @@ func (i *Implementation) Add(ctx context.Context) {
 			return
 		}
 	})
+
+	wrappedHandler := i.rateLimiter.Middleware(handler, func(r *http.Request) string {
+		host, _, _ := net.SplitHostPort(r.RemoteAddr)
+		return host
+	})
+
+	i.mux.Handle("POST /clients", wrappedHandler)
 }
