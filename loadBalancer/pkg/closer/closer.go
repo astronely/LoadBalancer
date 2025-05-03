@@ -1,7 +1,7 @@
 package closer
 
 import (
-	"github.com/astronely/financial-helper_microservices/apiGateway/pkg/logger"
+	"log/slog"
 	"os"
 	"os/signal"
 	"sync"
@@ -40,9 +40,9 @@ func New(sig ...os.Signal) *Closer {
 			ch := make(chan os.Signal, 1)
 			signal.Notify(ch, sig...)
 			<-ch
-			logger.Debug("closer: received signal",
+			slog.Debug("closer: received signal",
 				"signal", <-ch)
-			logger.Debug("closer: Shutting down...")
+			slog.Debug("closer: Shutting down...")
 			signal.Stop(ch)
 			c.CloseAll()
 		}()
@@ -83,7 +83,7 @@ func (c *Closer) CloseAll() {
 
 		for i := 0; i < cap(errs); i++ {
 			if err := <-errs; err != nil {
-				logger.Info("shutdown finished with error:", err)
+				slog.Info("shutdown finished with error:", err)
 			}
 		}
 	})
